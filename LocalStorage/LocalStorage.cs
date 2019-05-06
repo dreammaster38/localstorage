@@ -140,20 +140,118 @@ namespace Hanssens.Net
         /// </summary>
         /// <param name="key">Unique key, can be any string, used for retrieving it later.</param>
         /// <param name="instance"></param>
-        public void Store<T>(string key, T instance)
+        public void Store<T>(string key, T instance, bool preserveInstReferences = false)
         {
             if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
             if (instance == null) throw new ArgumentNullException(nameof(instance));
 
-            var value = JsonConvert.SerializeObject(instance);
+            string value = string.Empty;
 
-            if (Storage.Keys.Contains(key))
-                Storage.Remove(key);
+            if (preserveInstReferences)
+            {
+                value = JsonConvert.SerializeObject(instance, new JsonSerializerSettings()
+                {
+                    //PreserveReferencesHandling = PreserveReferencesHandling.Objects,
+                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                });
+            }
+            else
+            {
+                value = JsonConvert.SerializeObject(instance);
+            }
 
-            if (_config.EnableEncryption)
-                value = CryptographyHelpers.Encrypt(_encryptionKey, _config.EncryptionSalt, value);
+            if (value != string.Empty)
+            {
+                if (Storage.Keys.Contains(key))
+                    Storage.Remove(key);
 
-            Storage.Add(key, value);
+                if (_config.EnableEncryption)
+                    value = CryptographyHelpers.Encrypt(_encryptionKey, _config.EncryptionSalt, value);
+
+                Storage.Add(key, value);
+            }
+        }
+
+        /// <summary>
+        /// Removes a key and it's data from the store.
+        /// </summary>
+        /// <param name="key">The key for the data we want to delete</param>
+        /// <returns></returns>
+        public bool DeleteDataForKey(string key)
+        {
+            bool result = false;
+            this.Load();
+            if (this.Storage.ContainsKey(key))
+            {
+                result = this.Storage.Remove(key);
+                this.Persist();
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Removes all keys and it's data from the store
+        /// where a key contains the given string.
+        /// Be aware: use this method with caution!
+        /// It could delete more data as you want if you
+        /// choose an unfortunate key part.
+        /// </summary>
+        /// <param name="key">The key for the data we want to delete</param>
+        /// <returns></returns>
+        public (int totalKeys, int removedKeys) DeleteDataForPartialKey(string keyPart)
+        {
+            var result = (totalKeys : 0, removedKeys : 0);
+            if (!string.IsNullOrEmpty(keyPart))
+            {
+                this.Load();
+                var foundKeys = this.Keys().Where(k => k.Contains(keyPart));
+                result.totalKeys = foundKeys.Count();
+
+                foreach (var key in foundKeys)
+                {
+                    if (this.Storage.ContainsKey(key))
+                    {
+                        var keyRemoved = this.Storage.Remove(key);
+                        if (keyRemoved)
+                        {
+                            result.removedKeys++;
+                        }
+
+                        this.Persist();
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Removes all given keys and it's data from the store.
+        /// </summary>
+        /// <param name="keys"></param>
+        /// <returns></returns>
+        public bool DeleteDataForAllKeys(List<string> keys)
+        {
+            var totalKeys = keys.Count;
+            var removedKeys = 0;
+            if (keys != null)
+            {
+                this.Load();
+                foreach (var key in keys)
+                {
+                    if (this.Storage.ContainsKey(key))
+                    {
+                        var keyRemoved = this.Storage.Remove(key);
+                        if (keyRemoved)
+                        {
+                            removedKeys++;
+                        }
+                        this.Persist();
+                    }
+                }
+            }
+
+            return totalKeys == removedKeys;
         }
 
         /// <summary>

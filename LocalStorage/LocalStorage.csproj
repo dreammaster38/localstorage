@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Authors>Juliën Hanssens</Authors>
+    <Authors>Juliën Hanssens, Thomas Guenther</Authors>
     <Company />
     <PackageProjectUrl>https://github.com/hanssens/localstorage-for-dotnet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/hanssens/localstorage-for-dotnet</RepositoryUrl>
